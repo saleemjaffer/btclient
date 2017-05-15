@@ -2,35 +2,41 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
-	//"io/ioutil"
 	"io/ioutil"
+	"log"
+	"strconv"
 )
 
 func main() {
-	//s, newIndex, err := parseString("4:hell", 0)
-	//if err != nil {
-	//	panic("fuck up main")
-	//}
-	//fmt.Println(s)
-	//fmt.Println(newIndex)
+	decode()
+}
 
-	//s, newIndex, err := ParseList("l4:hell6:saleeml3:hey4:home9:beautifule4:fucke", 0)
+func decode() {
 	content, err := ioutil.ReadFile("/Users/gb123/github.com/saleemjaffer/BitTorrentClient/src/main/test.torrent")
-
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	//fmt.Println(string(content))
-	s, _, err := ParseDict(string(content), 0)
-	//s, _, err := ParseDict("d13:announce-listll2:wreee", 0)
-	if err != nil {
-		panic("fuck up main")
-	}
-	fmt.Println("success")
-	fmt.Println(s)
 
+	switch string(string(content)[0]) {
+	case "d":
+		_, _, err := ParseDict(string(content), 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+		//fmt.Println(d)
+	case "l":
+		_, _, err = ParseList(string(content), 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+	case "i":
+		_, _, err = ParseInt(string(content), 0)
+		if err != nil {
+			log.Fatal(err)
+		}
+	default:
+		log.Fatal("not yet handled strings")
+	}
 }
 
 func ParseDict(input string, index int) (map[string]interface{}, int, error) {
@@ -38,73 +44,74 @@ func ParseDict(input string, index int) (map[string]interface{}, int, error) {
 	initialIndex := index
 	for {
 		if string(input[index]) == "e" {
-			// end of dict
-			break
+			break // end of dict
 		}
 
 		var key string
 		var val interface{}
 		var err error
+
+		// This is to handle the first invocation of ParseDict. If this check
+		// is not present you will end up doing infinite recursion
 		if string(input[index]) == "d" && initialIndex == index {
 			index++
 		}
 
 		key, index, err = parseString(input, index)
 		if err != nil {
-			panic("fucked up string")
+			log.Fatal(err)
 		}
 
 		// check what the type the value is
-		_, err = strconv.Atoi(string(input[index]))
-		if err != nil {
-			if string(input[index]) == "l" {
-				//fmt.Println("FUCK")
-				val, index, err = ParseList(input, index)
-				if err != nil {
-					panic("")
-				}
-				dict[key] = val
-			} else if string(input[index]) == "d" {
-				val, index, err = ParseDict(input, index)
-				if err != nil {
-					panic("")
-				}
-				dict[key] = val
-			} else {
-				val, index, err = ParseInt(input, index)
-				if err != nil {
-					panic("fuck")
-				}
-				dict[key] = val
+		switch string(string(input[index])) {
+		case "l":
+			val, index, err = ParseList(input, index)
+			if err != nil {
+				log.Fatal(err)
 			}
-		} else {
+			dict[key] = val
+		case "d":
+			val, index, err = ParseDict(input, index)
+			if err != nil {
+				log.Fatal(err)
+			}
+			dict[key] = val
+		case "i":
+			val, index, err = ParseInt(input, index)
+			if err != nil {
+				log.Fatal(err)
+			}
+			dict[key] = val
+		default:
+			_, err := strconv.Atoi(string(string(input[index])))
+			if err != nil {
+				log.Fatal(err)
+			}
 			val, index, err = parseString(input, index)
 			dict[key] = val
-		}
 
+		}
 	}
 
 	return dict, index + 1, nil
 }
 
 func ParseList(input string, index int) ([]interface{}, int, error) {
-	//fmt.Println(index)
-	//fmt.Println(string(input[18]))
 	list := make([]interface{}, 0)
 	initialIndex := index
 	for {
 		if string(input[index]) == "e" {
-			// end of list
-			break
+			break // end of list
 		}
 
-		if string(input[index+1]) == "l" || (string(input[index]) == "l" && initialIndex != index) {
+		if string(input[index+1]) == "l" ||
+			(string(input[index]) == "l" && initialIndex != index) {
 			var ll interface{}
 			var err error
-			//fmt.Println(string(input[index]))
+
 			ll, index, err = ParseList(input, index+1)
 			if err != nil {
-				panic("fucked")
+				log.Fatal(err)
 			}
 			list = append(list, ll)
 		} else {
@@ -112,7 +119,7 @@ func ParseList(input string, index int) ([]interface{}, int, error) {
 			var str interface{}
 			var dict map[string]interface{}
 			var integer string
-			//fmt.Println(string(input[index]))
+
 			if string(input[index]) == "l" {
 				index++
 			}
@@ -124,7 +131,7 @@ func ParseList(input string, index int) ([]interface{}, int, error) {
 
 				list = append(list, dict)
 
-			} else if string(input[index]) == "i"{
+			} else if string(input[index]) == "i" {
 				integer, index, err = ParseInt(input, index)
 				if err != nil {
 					panic("fucked up integer")
@@ -174,7 +181,6 @@ func parseString(input string, index int) (string, int, error) {
 	return string(input[index : index+stringLen]), index + stringLen, nil
 
 }
-
 
 func ParseInt(input string, index int) (string, int, error) {
 	if string(input[index]) != "i" {
