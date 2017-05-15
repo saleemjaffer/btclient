@@ -17,6 +17,9 @@ func decode() {
 		log.Fatal(err)
 	}
 
+	//content := "l3:qqqe"
+	//var err error
+
 	switch string(string(content)[0]) {
 	case "d":
 		_, _, err := ParseDict(string(content), 0)
@@ -104,54 +107,50 @@ func ParseList(input string, index int) ([]interface{}, int, error) {
 			break // end of list
 		}
 
-		if string(input[index+1]) == "l" ||
-			(string(input[index]) == "l" && initialIndex != index) {
-			var ll interface{}
-			var err error
+		if string(input[index]) == "l" && initialIndex == index {
+			index++
+		}
 
-			ll, index, err = ParseList(input, index+1)
+		var err error
+		var s interface{}
+		var d map[string]interface{}
+		l := make([]interface{}, 0)
+		var i int
+
+		switch string(string(input[index])) {
+		case "l":
+			l, index, err = ParseList(input, index)
 			if err != nil {
 				log.Fatal(err)
 			}
-			list = append(list, ll)
-		} else {
-			var err error
-			var str interface{}
-			var dict map[string]interface{}
-			var integer string
 
-			if string(input[index]) == "l" {
-				index++
+			list = append(list, l)
+		case "d":
+			d, index, err = ParseDict(input, index)
+			if err != nil {
+				log.Fatal(err)
 			}
-			if string(input[index]) == "d" {
-				dict, index, err = ParseDict(input, index)
-				if err != nil {
-					panic("fucked up dict")
-				}
 
-				list = append(list, dict)
-
-			} else if string(input[index]) == "i" {
-				integer, index, err = ParseInt(input, index)
-				if err != nil {
-					panic("fucked up integer")
-				}
-
-				list = append(list, integer)
-
-			} else {
-				str, index, err = parseString(input, index)
-				if err != nil {
-					panic("fucked up string")
-				}
-
-				list = append(list, str)
+			list = append(list, d)
+		case "i":
+			i, index, err = ParseInt(input, index)
+			if err != nil {
+				log.Fatal(err)
 			}
+
+			list = append(list, i)
+		default:
+			_, err := strconv.Atoi(string(string(input[index])))
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			s, index, err = parseString(input, index)
+			list = append(list, s)
 
 		}
-	}
 
-	//fmt.Println(list)
+	}
 
 	return list, index + 1, nil
 }
@@ -165,9 +164,6 @@ func parseString(input string, index int) (string, int, error) {
 			stringLen = len
 		}
 
-		//fmt.Println(stringLen)
-		//fmt.Println(string(input[index]))
-
 		if stringLen == 0 && err != nil {
 			return "", 0, errors.New(err.Error())
 		} else if string(input[index]) == ":" {
@@ -176,27 +172,32 @@ func parseString(input string, index int) (string, int, error) {
 		}
 		index++
 	}
-	//fmt.Println(string(input[index : index+stringLen]))
 
 	return string(input[index : index+stringLen]), index + stringLen, nil
 
 }
 
-func ParseInt(input string, index int) (string, int, error) {
+func ParseInt(input string, index int) (int, int, error) {
 	if string(input[index]) != "i" {
-		panic("fucked up inside parse int")
+		return 0, 0, errors.New("Invalid input")
 	}
 	index++
-	var integer string = ""
+
+	var t string = ""
 
 	for {
 		if string(input[index]) != "e" {
-			integer = integer + string(input[index])
+			t = t + string(input[index])
 			index++
 		} else {
 			break
 		}
 
+	}
+
+	integer, err := strconv.Atoi(t)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	return integer, index + 1, nil
